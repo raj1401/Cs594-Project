@@ -31,12 +31,12 @@ class LogAccuracyCallback(TrainerCallback):
         if metrics and "eval_accuracy" in metrics:
             print(f">>> Epoch {int(state.epoch)} - Validation Accuracy: {metrics['eval_accuracy']:.4f}")
 
-# 1. Load SST-2 Dataset
-dataset = load_dataset("glue", "sst2")
+# 1. Load MRPC Dataset
+dataset = load_dataset("glue", "mrpc")
 tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased")
 
 def tokenize_fn(example):
-    return tokenizer(example["sentence"], truncation=True)
+    return tokenizer(example["sentence1"], example["sentence2"], truncation=True)
 
 tokenized_dataset = dataset.map(tokenize_fn, batched=True)
 tokenized_dataset = tokenized_dataset.rename_column("label", "labels")
@@ -96,15 +96,15 @@ trainer = Trainer(
     tokenizer=tokenizer,
     data_collator=data_collator,
     compute_metrics=compute_metrics,
-    callbacks=[LogAccuracyCallback()]  # Add callback here
+    callbacks=[LogAccuracyCallback()]
 )
 
 # 6. Start Training
 trainer.train()
 
 # 7. Save the fine-tuned model
-model.save_pretrained("bert-sst2-qlora")
-tokenizer.save_pretrained("bert-sst2-qlora")
+model.save_pretrained("bert-mrpc-qlora")
+tokenizer.save_pretrained("bert-mrpc-qlora")
 
 # 8. Evaluate the model
 results = trainer.evaluate()

@@ -20,3 +20,4 @@ accelerate>=0.17.1
 wandb
 pytablewriter
 evaluate==0.4.3
+bitsandbytes==0.45.4

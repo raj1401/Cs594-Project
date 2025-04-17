@@ -17,22 +17,22 @@ from peft import (
 )
 import numpy as np
 
-# Load accuracy metric
-accuracy_metric = load("accuracy")
+# Load Matthews correlation metric for CoLA
+matthews_metric = load("matthews_correlation")
 
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
-    return accuracy_metric.compute(predictions=predictions, references=labels)
+    return matthews_metric.compute(predictions=predictions, references=labels)
 
-# Custom callback to log accuracy after each epoch
-class LogAccuracyCallback(TrainerCallback):
+# Custom callback to log correlation after each epoch
+class LogCorrelationCallback(TrainerCallback):
     def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        if metrics and "eval_accuracy" in metrics:
-            print(f">>> Epoch {int(state.epoch)} - Validation Accuracy: {metrics['eval_accuracy']:.4f}")
+        if metrics and "eval_matthews_correlation" in metrics:
+            print(f">>> Epoch {int(state.epoch)} - Validation Matthews Correlation: {metrics['eval_matthews_correlation']:.4f}")
 
-# 1. Load SST-2 Dataset
-dataset = load_dataset("glue", "sst2")
+# 1. Load CoLA Dataset
+dataset = load_dataset("glue", "cola")
 tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased")
 
 def tokenize_fn(example):
@@ -96,16 +96,16 @@ trainer = Trainer(
     tokenizer=tokenizer,
     data_collator=data_collator,
     compute_metrics=compute_metrics,
-    callbacks=[LogAccuracyCallback()]  # Add callback here
+    callbacks=[LogCorrelationCallback()]  # Update callback
 )
 
 # 6. Start Training
 trainer.train()
 
 # 7. Save the fine-tuned model
-model.save_pretrained("bert-sst2-qlora")
-tokenizer.save_pretrained("bert-sst2-qlora")
+model.save_pretrained("bert-cola-qlora")
+tokenizer.save_pretrained("bert-cola-qlora")
 
 # 8. Evaluate the model
 results = trainer.evaluate()
-print(f"Final Validation Accuracy: {results['eval_accuracy']:.4f}")
+print(f"Final Validation Matthews Correlation: {results['eval_matthews_correlation']:.4f}")

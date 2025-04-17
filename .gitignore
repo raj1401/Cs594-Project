@@ -1,3 +1,10 @@
 __pycache__/
 results/
 bert-sst2-qlora/
+bert-cola-qlora/
+bert-mrpc-qlora/
+bert-stsb-qlora/
+bert-qqp-qlora/
+bert-mnli-qlora/
+bert-rte-qlora/
+bert-wnli-qlora/

@@ -31,12 +31,12 @@ class LogAccuracyCallback(TrainerCallback):
         if metrics and "eval_accuracy" in metrics:
             print(f">>> Epoch {int(state.epoch)} - Validation Accuracy: {metrics['eval_accuracy']:.4f}")
 
-# 1. Load SST-2 Dataset
-dataset = load_dataset("glue", "sst2")
+# 1. Load QQP Dataset
+dataset = load_dataset("glue", "qqp")
 tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased")
 
 def tokenize_fn(example):
-    return tokenizer(example["sentence"], truncation=True)
+    return tokenizer(example["question1"], example["question2"], truncation=True)
 
 tokenized_dataset = dataset.map(tokenize_fn, batched=True)
 tokenized_dataset = tokenized_dataset.rename_column("label", "labels")
@@ -78,7 +78,7 @@ training_args = TrainingArguments(
     per_device_eval_batch_size=64,
     evaluation_strategy="epoch",
     save_strategy="epoch",
-    logging_dir="./logs",
+    logging_dir="./logs-qqp",
     logging_strategy="epoch",
     num_train_epochs=10,
     learning_rate=1e-4,
@@ -103,8 +103,8 @@ trainer = Trainer(
 trainer.train()
 
 # 7. Save the fine-tuned model
-model.save_pretrained("bert-sst2-qlora")
-tokenizer.save_pretrained("bert-sst2-qlora")
+model.save_pretrained("bert-qqp-qlora")
+tokenizer.save_pretrained("bert-qqp-qlora")
 
 # 8. Evaluate the model
 results = trainer.evaluate()
