@@ -81,7 +81,7 @@ training_args = TrainingArguments(
     logging_dir="./logs",
     logging_strategy="epoch",
     num_train_epochs=10,
-    learning_rate=1e-4,
+    learning_rate=6e-4,
     fp16=True,
     report_to="none",
 )

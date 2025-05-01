@@ -8,3 +8,4 @@ bert-qqp-qlora/
 bert-mnli-qlora/
 bert-rte-qlora/
 bert-wnli-qlora/
+wandb/

@@ -1,9 +1,7 @@
-# --------- STILL BUGGY ---------
-
 import torch
 from datasets import load_dataset
 from evaluate import load
-from datasets import Value
+from datasets import Value, ClassLabel
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -20,31 +18,37 @@ from peft import (
 )
 import numpy as np
 
-# Load GLUE's STS-B metric (includes Pearson & Spearman)
-stsb_metric = load("glue", "stsb")
+# Load accuracy metric
+accuracy_metric = load("accuracy")
 
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
-    predictions = predictions[:, 0]  # single regression output
-    return stsb_metric.compute(predictions=predictions, references=labels)
+    preds = np.argmax(predictions, axis=1)
+    return accuracy_metric.compute(predictions=preds, references=labels)
 
-class LogSTSBCallback(TrainerCallback):
+class LogAccuracyCallback(TrainerCallback):
     def on_evaluate(self, args, state, control, metrics=None, **kwargs):
         if metrics:
-            pearson = metrics.get("pearson", None)
-            spearman = metrics.get("spearmanr", None)
-            print(f">>> Epoch {int(state.epoch)} - Pearson: {pearson:.4f} | Spearman: {spearman:.4f}")
+            acc = metrics.get("accuracy", None)
+            print(f">>> Epoch {int(state.epoch)} - Accuracy: {acc:.4f}")
 
 # 1. Load STS-B Dataset
 dataset = load_dataset("glue", "stsb")
 tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased")
+
+# Convert regression scores (0.0–5.0) to integer classes (0–5)
+def discretize_label(example):
+    example["label"] = int(round(example["label"]))
+    return example
+
+dataset = dataset.map(discretize_label)
 
 def tokenize_fn(example):
     return tokenizer(example["sentence1"], example["sentence2"], truncation=True)
 
 tokenized_dataset = dataset.map(tokenize_fn, batched=True)
 tokenized_dataset = tokenized_dataset.rename_column("label", "labels")
-tokenized_dataset = tokenized_dataset.cast_column("labels", Value("float32"))
+tokenized_dataset = tokenized_dataset.cast_column("labels", ClassLabel(num_classes=6))
 
 # 2. BitsAndBytes Quantization Config (4-bit)
 bnb_config = BitsAndBytesConfig(
@@ -54,10 +58,10 @@ bnb_config = BitsAndBytesConfig(
     bnb_4bit_compute_dtype=torch.float16
 )
 
-# 3. Load Model for Regression (output_dim=1)
+# 3. Load Model for Classification (output_dim=6)
 model = AutoModelForSequenceClassification.from_pretrained(
     "bert-large-uncased",
-    num_labels=1,  # Regression
+    num_labels=6,  # Classification
     quantization_config=bnb_config,
     device_map="auto"
 )
@@ -102,16 +106,16 @@ trainer = Trainer(
     tokenizer=tokenizer,
     data_collator=data_collator,
     compute_metrics=compute_metrics,
-    callbacks=[LogSTSBCallback()]
+    callbacks=[LogAccuracyCallback()]
 )
 
 # 6. Start Training
 trainer.train()
 
 # 7. Save the fine-tuned model
-model.save_pretrained("bert-stsb-qlora")
-tokenizer.save_pretrained("bert-stsb-qlora")
+model.save_pretrained("bert-stsb-qlora-accuracy")
+tokenizer.save_pretrained("bert-stsb-qlora-accuracy")
 
 # 8. Evaluate the model
 results = trainer.evaluate()
-print(f"Final Validation Pearson Correlation: {results['pearson']:.4f}")
+print(f"Final Validation Accuracy: {results['accuracy']:.4f}")
